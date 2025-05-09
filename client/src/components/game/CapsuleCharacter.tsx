@@ -257,7 +257,7 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
         
         otherCharacters.forEach(character => {
           if (character !== groupRef.current) {
-            if (character && character.position) {
+            if (character && 'position' in character && character.position instanceof THREE.Vector3) {
               const distance = currentPos.distanceTo(character.position);
               if (distance < nearestDistance && distance > 0.5) { // Prevent getting too close
                 nearestDistance = distance;
@@ -267,7 +267,7 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
           }
         });
         
-        if (nearestCharacter && nearestDistance > 2 && nearestCharacter.position) {
+        if (nearestCharacter && nearestDistance > 2 && 'position' in nearestCharacter && nearestCharacter.position instanceof THREE.Vector3) {
           // Move toward nearest character
           const charPosition = nearestCharacter.position.clone();
           const toCharacter = charPosition.sub(currentPos).normalize();
