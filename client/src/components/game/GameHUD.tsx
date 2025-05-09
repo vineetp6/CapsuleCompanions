@@ -162,13 +162,53 @@ const GameHUD: React.FC<GameHUDProps> = ({ characterCount = 0, onAddCharacter })
         
         {/* Custom Help Modal */}
         {showHelpModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 pointer-events-auto">
-            <div className="bg-gray-800 text-white rounded-lg p-6 max-w-xl max-h-[80vh] overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">CAPSULE CHARACTERS - HOW TO PLAY</h2>
+          // Portal this outside of the canvas to avoid rendering issues
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            pointerEvents: 'auto'
+          }}>
+            <div style={{
+              backgroundColor: '#1f2937',
+              color: 'white',
+              borderRadius: '8px',
+              padding: '24px',
+              maxWidth: '600px',
+              width: '90%',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+              position: 'relative',
+              boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '16px'
+              }}>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: 'bold'
+                }}>CAPSULE CHARACTERS - HOW TO PLAY</h2>
                 <button 
                   onClick={() => setShowHelpModal(false)}
-                  className="text-gray-400 hover:text-white"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#cbd5e0',
+                    cursor: 'pointer',
+                    padding: '4px'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.color = 'white'}
+                  onMouseOut={(e) => e.currentTarget.style.color = '#cbd5e0'}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -177,57 +217,82 @@ const GameHUD: React.FC<GameHUDProps> = ({ characterCount = 0, onAddCharacter })
                 </button>
               </div>
               
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Character Personalities:</h3>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li><span className="text-red-400 font-bold">Red/Orange</span> - Energetic: Moves quickly and covers large areas</li>
-                    <li><span className="text-blue-400 font-bold">Blue</span> - Shy: Avoids other characters and moves cautiously</li>
-                    <li><span className="text-green-400 font-bold">Green</span> - Social: Seeks out other characters and enjoys company</li>
-                    <li><span className="text-yellow-300 font-bold">Yellow</span> - Lazy: Moves slowly and takes frequent breaks</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Controls:</h3>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>Click on a character to activate its AI behavior</li>
-                    <li>Use the orbit controls to navigate the camera</li>
-                    <li>Characters learn through reinforcement learning</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Learning & Reproduction:</h3>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>Characters get rewards for:</li>
-                    <ul className="list-circle pl-5 space-y-1">
-                      <li>Successfully reaching targets</li>
-                      <li>Avoiding obstacles</li>
-                      <li>Interacting according to their personality type</li>
-                    </ul>
-                    <li>Characters can reproduce when they learn enough</li>
-                    <li>They can also jump as they learn new behaviors</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Management:</h3>
-                  <ul className="list-disc pl-5 space-y-1">
-                    <li>Characters are saved in the browser database</li>
-                    <li>Learning progress is persistent between sessions</li>
-                    <li>Add more characters with the "Add Character" button</li>
-                  </ul>
-                </div>
+              <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '600',
+                  marginBottom: '8px'
+                }}>Character Personalities:</h3>
+                <ul style={{ paddingLeft: '20px', listStyleType: 'disc' }}>
+                  <li style={{ marginBottom: '4px' }}><span style={{ color: '#f87171', fontWeight: 'bold' }}>Red/Orange</span> - Energetic: Moves quickly and covers large areas</li>
+                  <li style={{ marginBottom: '4px' }}><span style={{ color: '#60a5fa', fontWeight: 'bold' }}>Blue</span> - Shy: Avoids other characters and moves cautiously</li>
+                  <li style={{ marginBottom: '4px' }}><span style={{ color: '#4ade80', fontWeight: 'bold' }}>Green</span> - Social: Seeks out other characters and enjoys company</li>
+                  <li style={{ marginBottom: '4px' }}><span style={{ color: '#fde047', fontWeight: 'bold' }}>Yellow</span> - Lazy: Moves slowly and takes frequent breaks</li>
+                </ul>
               </div>
               
-              <div className="mt-6 text-center">
-                <Button 
+              <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '600',
+                  marginBottom: '8px'
+                }}>Controls:</h3>
+                <ul style={{ paddingLeft: '20px', listStyleType: 'disc' }}>
+                  <li style={{ marginBottom: '4px' }}>Click on a character to activate its AI behavior</li>
+                  <li style={{ marginBottom: '4px' }}>Use the orbit controls to navigate the camera</li>
+                  <li style={{ marginBottom: '4px' }}>Characters learn through reinforcement learning</li>
+                </ul>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '600',
+                  marginBottom: '8px'
+                }}>Learning & Reproduction:</h3>
+                <ul style={{ paddingLeft: '20px', listStyleType: 'disc' }}>
+                  <li style={{ marginBottom: '4px' }}>Characters get rewards for:</li>
+                  <ul style={{ paddingLeft: '20px', listStyleType: 'circle' }}>
+                    <li style={{ marginBottom: '4px' }}>Successfully reaching targets</li>
+                    <li style={{ marginBottom: '4px' }}>Avoiding obstacles</li>
+                    <li style={{ marginBottom: '4px' }}>Interacting according to their personality type</li>
+                  </ul>
+                  <li style={{ marginBottom: '4px' }}>Characters can reproduce when they learn enough</li>
+                  <li style={{ marginBottom: '4px' }}>They can also jump as they learn new behaviors</li>
+                </ul>
+              </div>
+              
+              <div style={{ marginBottom: '16px' }}>
+                <h3 style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: '600',
+                  marginBottom: '8px'
+                }}>Management:</h3>
+                <ul style={{ paddingLeft: '20px', listStyleType: 'disc' }}>
+                  <li style={{ marginBottom: '4px' }}>Characters are saved in the browser database</li>
+                  <li style={{ marginBottom: '4px' }}>Learning progress is persistent between sessions</li>
+                  <li style={{ marginBottom: '4px' }}>Add more characters with the "Add Character" button</li>
+                </ul>
+              </div>
+              
+              <div style={{ marginTop: '24px', textAlign: 'center' }}>
+                <button 
                   onClick={() => setShowHelpModal(false)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{
+                    backgroundColor: '#2563eb',
+                    color: 'white',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    fontSize: '1rem'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+                  onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
                 >
                   Got it!
-                </Button>
+                </button>
               </div>
             </div>
           </div>
