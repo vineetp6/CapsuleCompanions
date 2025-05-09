@@ -138,6 +138,43 @@ class GameDatabase extends Dexie {
     
     return await this.addCharacter(newCharacter);
   }
+  
+  // Reset the game by clearing all characters
+  async clearAllCharacters(): Promise<void> {
+    console.log("Clearing all characters from database");
+    try {
+      // Delete all characters
+      await this.characters.clear();
+      console.log("All characters deleted successfully");
+      
+      // Reset the game state to have no active characters
+      const gameState = await this.getGameState();
+      if (gameState) {
+        await this.gameState.clear(); // Clear existing game state
+        
+        // Create a fresh game state
+        await this.saveGameState({
+          lastPlayed: new Date(),
+          charactersActive: [],
+          environment: 'default'
+        });
+        console.log("Game state reset successfully");
+      } else {
+        // If no game state exists, create one
+        await this.saveGameState({
+          lastPlayed: new Date(),
+          charactersActive: [],
+          environment: 'default'
+        });
+        console.log("Game state created successfully");
+      }
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error("Error clearing characters:", error);
+      return Promise.reject(error);
+    }
+  }
 }
 
 // Export a singleton instance
