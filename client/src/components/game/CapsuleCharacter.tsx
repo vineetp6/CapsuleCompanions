@@ -15,8 +15,10 @@ export interface CapsuleCharacterProps {
   name: string;
   obstacles: THREE.Object3D[];
   otherCharacters: THREE.Object3D[];
-  onReproduce?: (position: THREE.Vector3, parentColor: string, parentPersonality: PersonalityType, parentName: string) => void;
+  onReproduce?: (position: THREE.Vector3, parentColor: string, parentPersonality: PersonalityType, parentName: string, parentId?: number) => void;
   id?: number; // Database ID for persistence
+  learningProgress?: number; // Starting learning progress from database
+  experiences?: string[]; // Previous experiences from database
 }
 
 export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
@@ -27,7 +29,9 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
   obstacles,
   otherCharacters,
   onReproduce,
-  id
+  id,
+  learningProgress: initialLearningProgress = 0,
+  experiences = []
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const capsuleRef = useRef<THREE.Mesh>(null);
@@ -36,7 +40,7 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
   const [isHovering, setIsHovering] = useState(false);
   const [isJumping, setIsJumping] = useState(false);
   const [jumpHeight, setJumpHeight] = useState(0);
-  const [learningProgress, setLearningProgress] = useState(0);
+  const [learningProgress, setLearningProgress] = useState(initialLearningProgress);
   
   // Import all audio functions we'll need
   const { playHit, playSuccess } = useAudio();
@@ -45,9 +49,29 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
   const personality = useMemo(() => 
     new Personality(personalityType), [personalityType]);
   
-  // Create the reinforcement learning instance
-  const reinforcementLearning = useMemo(() => 
-    new ReinforcementLearning(), []);
+  // Create the reinforcement learning instance and load previous experiences
+  const reinforcementLearning = useMemo(() => {
+    const rl = new ReinforcementLearning();
+    
+    // Set initial learning progress if available
+    if (initialLearningProgress > 0) {
+      // We can't set progress directly, but we'll add some initial positive experiences
+      for (let i = 0; i < 10; i++) {
+        rl.train('previousLearning', initialLearningProgress * 5);
+      }
+    }
+    
+    // Add previous experiences
+    if (experiences && experiences.length > 0) {
+      experiences.forEach(exp => {
+        // Add as text experiences
+        rl.recordStateAction('previousState', exp);
+        rl.train('previousExperience', 0.5);
+      });
+    }
+    
+    return rl;
+  }, [initialLearningProgress, experiences]);
   
   // Cached movement variables
   const movementDirection = useMemo(() => new THREE.Vector3(), []);
@@ -154,7 +178,8 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
         groupRef.current.position,
         color,
         personalityType,
-        name
+        name,
+        id
       );
       
       // Record the positive experience
