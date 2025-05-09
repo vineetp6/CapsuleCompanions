@@ -250,7 +250,10 @@ const Game: React.FC = () => {
       </group>
       
       {/* HUD overlay */}
-      <GameHUD characterCount={characters.length} />
+      <GameHUD 
+        characterCount={characters.length} 
+        onAddCharacter={(newCharacter) => setCharactersState(prev => [...prev, newCharacter])}
+      />
     </>
   );
 };

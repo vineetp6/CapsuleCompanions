@@ -284,23 +284,55 @@ export class ReinforcementLearning {
   
   // Should the character reproduce?
   shouldReproduce(): boolean {
-    // Characters should reproduce when they've learned enough
-    // and reproduce is chosen as the best action
-    if (this.getLearningProgress() > 0.5) {
+    const learningProgress = this.getLearningProgress();
+    
+    // Basic reproduction threshold - as they learn more, chance increases
+    // Scale from 1% at 30% learning to 20% at 100% learning
+    const baseThreshold = 0.3; 
+    const maxLearningBonus = 0.20;
+    
+    if (learningProgress > baseThreshold) {
+      // Calculate reproduction chance based on learning progress
+      const progressFactor = (learningProgress - baseThreshold) / (1 - baseThreshold);
+      const reproductionChance = maxLearningBonus * progressFactor;
+      
+      // Higher chance if the character's current best action is reproduce
       const lastState = this.lastState || 'default';
       const bestAction = this.getBestAction(lastState);
-      return bestAction === 'reproduce' && Math.random() < 0.1; // 10% chance if conditions met
+      const actionBonus = bestAction === 'reproduce' ? 0.15 : 0;
+      
+      // Add a small bonus for having more experiences
+      const experienceBonus = Math.min(0.05, this.experienceBuffer.length / 200);
+      
+      // Combine all factors
+      const totalChance = reproductionChance + actionBonus + experienceBonus;
+      
+      return Math.random() < totalChance;
     }
+    
     return false;
   }
   
   // Should the character jump?
   shouldJump(): boolean {
+    const learningProgress = this.getLearningProgress();
+    
+    // Characters should learn to jump more as they learn
+    // Start with 5% chance, increase to 25% for well-learned characters
+    const baseJumpChance = 0.05;
+    const maxLearningBonus = 0.20;
+    const learningBonus = maxLearningBonus * learningProgress;
+    
     if (this.lastState) {
       const bestAction = this.getBestAction(this.lastState);
-      return bestAction === 'jump';
+      // Much higher chance if jump is the best action
+      if (bestAction === 'jump') {
+        return Math.random() < (baseJumpChance + learningBonus + 0.20);
+      }
     }
-    return false;
+    
+    // Small chance of jumping randomly, increased with learning
+    return Math.random() < (baseJumpChance + learningBonus * 0.5);
   }
   
   // Reset learning

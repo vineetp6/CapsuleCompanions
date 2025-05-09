@@ -70,44 +70,27 @@ const GameHUD: React.FC<GameHUDProps> = ({ characterCount = 0, onAddCharacter })
       const id = await db.addCharacter(newCharacter);
       console.log(`Created new random character: ${newCharacter.name} (${id})`);
       
-      // Reload page to show new character (simple solution)
-      window.location.reload();
+      // Add to state via callback instead of reloading
+      if (onAddCharacter) {
+        const newCharacterConfig = {
+          ...newCharacter,
+          id,
+          personalityType: newCharacter.personality
+        };
+        onAddCharacter(newCharacterConfig);
+      }
     } catch (error) {
       console.error('Error creating new character:', error);
     } finally {
       setIsAddingCharacter(false);
     }
-  }, [isAddingCharacter, playHit]);
+  }, [isAddingCharacter, playHit, onAddCharacter]);
   
+  // Custom help modal instead of using alert
+  const [showHelpModal, setShowHelpModal] = useState(false);
+
   const handleHelp = useCallback(() => {
-    // Open a simple browser alert with instructions instead of a Dialog
-    alert(`
-CAPSULE CHARACTERS - HOW TO PLAY
-
-Character Personalities:
-- Red/Orange - Energetic: Moves quickly and covers large areas
-- Blue - Shy: Avoids other characters and moves cautiously
-- Green - Social: Seeks out other characters and enjoys company
-- Yellow - Lazy: Moves slowly and takes frequent breaks
-
-Controls:
-- Click on a character to activate its AI behavior
-- Use the orbit controls to navigate the camera
-- Characters learn through reinforcement learning
-
-Learning & Reproduction:
-Characters get rewards for:
-- Successfully reaching targets
-- Avoiding obstacles
-- Interacting according to their personality type
-- Characters can reproduce when they learn enough
-- They can also jump as they learn new behaviors
-
-Management:
-- Characters are saved in the browser database
-- Learning progress is persistent between sessions
-- Add more characters with the "Add Character" button
-    `);
+    setShowHelpModal(true);
   }, []);
   
   return (
@@ -176,6 +159,79 @@ Management:
             <p className="text-xs mt-1 text-center">Characters learn over time and can jump or reproduce!</p>
           </div>
         </div>
+        
+        {/* Custom Help Modal */}
+        {showHelpModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 pointer-events-auto">
+            <div className="bg-gray-800 text-white rounded-lg p-6 max-w-xl max-h-[80vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">CAPSULE CHARACTERS - HOW TO PLAY</h2>
+                <button 
+                  onClick={() => setShowHelpModal(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Character Personalities:</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li><span className="text-red-400 font-bold">Red/Orange</span> - Energetic: Moves quickly and covers large areas</li>
+                    <li><span className="text-blue-400 font-bold">Blue</span> - Shy: Avoids other characters and moves cautiously</li>
+                    <li><span className="text-green-400 font-bold">Green</span> - Social: Seeks out other characters and enjoys company</li>
+                    <li><span className="text-yellow-300 font-bold">Yellow</span> - Lazy: Moves slowly and takes frequent breaks</li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Controls:</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Click on a character to activate its AI behavior</li>
+                    <li>Use the orbit controls to navigate the camera</li>
+                    <li>Characters learn through reinforcement learning</li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Learning & Reproduction:</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Characters get rewards for:</li>
+                    <ul className="list-circle pl-5 space-y-1">
+                      <li>Successfully reaching targets</li>
+                      <li>Avoiding obstacles</li>
+                      <li>Interacting according to their personality type</li>
+                    </ul>
+                    <li>Characters can reproduce when they learn enough</li>
+                    <li>They can also jump as they learn new behaviors</li>
+                  </ul>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-semibold mb-2">Management:</h3>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Characters are saved in the browser database</li>
+                    <li>Learning progress is persistent between sessions</li>
+                    <li>Add more characters with the "Add Character" button</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-6 text-center">
+                <Button 
+                  onClick={() => setShowHelpModal(false)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Got it!
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Html>
   );
