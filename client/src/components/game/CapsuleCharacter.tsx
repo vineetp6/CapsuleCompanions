@@ -257,8 +257,11 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
         
         otherCharacters.forEach(character => {
           if (character !== groupRef.current) {
-            if (character && 'position' in character && character.position instanceof THREE.Vector3) {
-              const distance = currentPos.distanceTo(character.position);
+            if (character) {
+              // Cast to Object3D with defined position to fix TypeScript issues
+              const objectWithPosition = character as THREE.Object3D & { position: THREE.Vector3 };
+              
+              const distance = currentPos.distanceTo(objectWithPosition.position);
               if (distance < nearestDistance && distance > 0.5) { // Prevent getting too close
                 nearestDistance = distance;
                 nearestCharacter = character;
@@ -267,9 +270,12 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
           }
         });
         
-        if (nearestCharacter && nearestDistance > 2 && 'position' in nearestCharacter && nearestCharacter.position instanceof THREE.Vector3) {
+        if (nearestCharacter && nearestDistance > 2) {
+          // Cast to Object3D with defined position to fix TypeScript issues
+          const objectWithPosition = nearestCharacter as THREE.Object3D & { position: THREE.Vector3 };
+          
           // Move toward nearest character
-          const charPosition = nearestCharacter.position.clone();
+          const charPosition = objectWithPosition.position.clone();
           const toCharacter = charPosition.sub(currentPos).normalize();
           targetPosition.set(
             currentPos.x + toCharacter.x * movementParams.wanderRadius * 0.7,

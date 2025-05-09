@@ -37,41 +37,87 @@ function App() {
   
   // Load audio files on component mount
   useEffect(() => {
-    // Create audio elements
-    const bgMusic = new Audio("/sounds/background.mp3");
-    bgMusic.loop = true;
-    bgMusic.volume = 0.3;
-    
-    const hit = new Audio("/sounds/hit.mp3");
-    hit.volume = 0.5;
-    
-    const success = new Audio("/sounds/success.mp3");
-    success.volume = 0.5;
-    
-    // Set local state
-    setBackgroundMusic(bgMusic);
-    setHitSound(hit);
-    setSuccessSound(success);
-    
-    // Set store state
-    setStoreBackgroundMusic(bgMusic);
-    setStoreHitSound(hit);
-    setStoreSuccessSound(success);
-    
-    // Start playing background music
-    // Use a timeout to ensure the audio is ready
-    const audioTimeout = setTimeout(() => {
-      startBackgroundMusic();
-    }, 1000);
-    
-    return () => {
-      // Clean up
-      clearTimeout(audioTimeout);
-      bgMusic.pause();
-      hit.pause();
-      success.pause();
-    };
-  }, [setStoreBackgroundMusic, setStoreHitSound, setStoreSuccessSound, startBackgroundMusic]);
+    try {
+      // Create audio elements with preload
+      const bgMusic = new Audio();
+      bgMusic.src = "/sounds/background.mp3";
+      bgMusic.preload = "auto";
+      bgMusic.loop = true;
+      bgMusic.volume = 0.3;
+      
+      const hit = new Audio();
+      hit.src = "/sounds/hit.mp3";
+      hit.preload = "auto";
+      hit.volume = 0.5;
+      
+      const success = new Audio();
+      success.src = "/sounds/success.mp3";
+      success.preload = "auto";
+      success.volume = 0.5;
+      
+      console.log("Loading audio files...");
+      
+      // Event listeners to ensure sounds are loaded
+      const handleBgLoaded = () => {
+        console.log("Background music loaded successfully");
+        // Set store state
+        setStoreBackgroundMusic(bgMusic);
+        
+        // Try to start playing background music
+        bgMusic.play().catch(err => {
+          console.error("Could not play background music automatically:", err);
+        });
+      };
+      
+      const handleHitLoaded = () => {
+        console.log("Hit sound loaded successfully");
+        setStoreHitSound(hit);
+      };
+      
+      const handleSuccessLoaded = () => {
+        console.log("Success sound loaded successfully");
+        setStoreSuccessSound(success);
+      };
+      
+      // Handle loading errors
+      const handleError = (e: ErrorEvent, soundType: string) => {
+        console.error(`Error loading ${soundType} sound:`, e);
+      };
+      
+      // Add event listeners
+      bgMusic.addEventListener('canplaythrough', handleBgLoaded);
+      hit.addEventListener('canplaythrough', handleHitLoaded);
+      success.addEventListener('canplaythrough', handleSuccessLoaded);
+      
+      bgMusic.addEventListener('error', (e) => handleError(e as unknown as ErrorEvent, 'background'));
+      hit.addEventListener('error', (e) => handleError(e as unknown as ErrorEvent, 'hit'));
+      success.addEventListener('error', (e) => handleError(e as unknown as ErrorEvent, 'success'));
+      
+      // Set local state (immediately for UI purposes)
+      setBackgroundMusic(bgMusic);
+      setHitSound(hit);
+      setSuccessSound(success);
+      
+      // Force load the audio files
+      bgMusic.load();
+      hit.load();
+      success.load();
+      
+      return () => {
+        // Remove event listeners
+        bgMusic.removeEventListener('canplaythrough', handleBgLoaded);
+        hit.removeEventListener('canplaythrough', handleHitLoaded);
+        success.removeEventListener('canplaythrough', handleSuccessLoaded);
+        
+        // Clean up
+        bgMusic.pause();
+        hit.pause();
+        success.pause();
+      };
+    } catch (err) {
+      console.error("Error setting up audio:", err);
+    }
+  }, [setStoreBackgroundMusic, setStoreHitSound, setStoreSuccessSound]);
 
   return (
     <div className="w-full h-full bg-gray-900">
