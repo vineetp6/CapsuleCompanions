@@ -6,6 +6,7 @@ import { Html } from "@react-three/drei";
 import { Personality, PersonalityType } from "../../lib/ai/personality";
 import { ReinforcementLearning } from "../../lib/ai/reinforcementLearning";
 import { Vector3, Object3D } from "three";
+import { db } from '../../lib/db/database';
 
 export interface CapsuleCharacterProps {
   position: [number, number, number];
@@ -14,6 +15,8 @@ export interface CapsuleCharacterProps {
   name: string;
   obstacles: THREE.Object3D[];
   otherCharacters: THREE.Object3D[];
+  onReproduce?: (position: THREE.Vector3, parentColor: string, parentPersonality: PersonalityType, parentName: string) => void;
+  id?: number; // Database ID for persistence
 }
 
 export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
@@ -23,13 +26,20 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
   name,
   obstacles,
   otherCharacters,
+  onReproduce,
+  id
 }) => {
   const groupRef = useRef<THREE.Group>(null);
   const capsuleRef = useRef<THREE.Mesh>(null);
   const [isActive, setIsActive] = useState(false);
   const [actionText, setActionText] = useState("");
   const [isHovering, setIsHovering] = useState(false);
-  const { playHit } = useAudio();
+  const [isJumping, setIsJumping] = useState(false);
+  const [jumpHeight, setJumpHeight] = useState(0);
+  const [learningProgress, setLearningProgress] = useState(0);
+  
+  // Import all audio functions we'll need
+  const { playHit, playSuccess } = useAudio();
   
   // Create the personality instance
   const personality = useMemo(() => 
@@ -47,17 +57,49 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
   
   // Movement parameters based on personality
   const movementParams = useMemo(() => {
+    const jumpDuration = 500; // Base jump duration (ms)
+    
     switch (personalityType) {
       case "energetic":
-        return { speed: 0.04, turnSpeed: 0.1, wanderRadius: 8 };
+        return { 
+          speed: 0.04, 
+          turnSpeed: 0.1, 
+          wanderRadius: 8,
+          jumpHeight: 0.8,
+          jumpDuration: jumpDuration * 0.8 // Faster jumps
+        };
       case "lazy":
-        return { speed: 0.01, turnSpeed: 0.05, wanderRadius: 3 };
+        return { 
+          speed: 0.01, 
+          turnSpeed: 0.05, 
+          wanderRadius: 3,
+          jumpHeight: 0.3,
+          jumpDuration: jumpDuration * 1.5 // Slower jumps
+        };
       case "shy":
-        return { speed: 0.02, turnSpeed: 0.08, wanderRadius: 4 };
+        return { 
+          speed: 0.02, 
+          turnSpeed: 0.08, 
+          wanderRadius: 4,
+          jumpHeight: 0.5,
+          jumpDuration
+        };
       case "social":
-        return { speed: 0.03, turnSpeed: 0.09, wanderRadius: 6 };
+        return { 
+          speed: 0.03, 
+          turnSpeed: 0.09, 
+          wanderRadius: 6,
+          jumpHeight: 0.6,
+          jumpDuration
+        };
       default:
-        return { speed: 0.025, turnSpeed: 0.07, wanderRadius: 5 };
+        return { 
+          speed: 0.025, 
+          turnSpeed: 0.07, 
+          wanderRadius: 5,
+          jumpHeight: 0.5,
+          jumpDuration
+        };
     }
   }, [personalityType]);
 

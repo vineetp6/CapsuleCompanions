@@ -7,6 +7,14 @@ interface QValue {
   [key: string]: number;
 }
 
+export interface Experience {
+  state: string;
+  action: string;
+  reward: number;
+  nextState: string;
+  timestamp: number;
+}
+
 export class ReinforcementLearning {
   private qTable: Record<string, QValue>;
   private learningRate: number;
@@ -14,6 +22,9 @@ export class ReinforcementLearning {
   private explorationRate: number;
   private lastState: string | null;
   private lastAction: string | null;
+  private experienceBuffer: Experience[];
+  private maxBufferSize: number;
+  private experiences: string[]; // Textual descriptions of experiences
   
   constructor() {
     this.qTable = {};
@@ -22,6 +33,9 @@ export class ReinforcementLearning {
     this.explorationRate = 0.2;
     this.lastState = null;
     this.lastAction = null;
+    this.experienceBuffer = [];
+    this.maxBufferSize = 100; // Store the last 100 experiences
+    this.experiences = [];
   }
   
   // Get key for the Q-table
@@ -65,12 +79,25 @@ export class ReinforcementLearning {
     const newValue = oldValue + this.learningRate * (reward + this.discountFactor * maxQValue - oldValue);
     
     this.qTable[stateKey][action] = newValue;
+    
+    // Add to experience buffer
+    this.addExperience({
+      state,
+      action,
+      reward,
+      nextState: newState,
+      timestamp: Date.now()
+    });
   }
   
   // Get all possible actions for a state
   getPossibleActions(state: string): string[] {
-    // For this simple implementation, return fixed set of actions
-    return ['moveForward', 'moveBackward', 'turnLeft', 'turnRight', 'approachOther', 'avoidOther', 'rest'];
+    // Enhanced set of actions including jumping and reproduction
+    return [
+      'moveForward', 'moveBackward', 'turnLeft', 'turnRight', 
+      'approachOther', 'avoidOther', 'rest', 'jump', 'reproduce',
+      'explore', 'dance', 'spin', 'follow', 'lead'
+    ];
   }
   
   // Choose an action using epsilon-greedy strategy
@@ -105,8 +132,95 @@ export class ReinforcementLearning {
     this.lastAction = action;
   }
   
+  // Add an experience to the buffer
+  private addExperience(experience: Experience): void {
+    this.experienceBuffer.push(experience);
+    
+    // Keep buffer size under maxBufferSize
+    if (this.experienceBuffer.length > this.maxBufferSize) {
+      this.experienceBuffer.shift();
+    }
+    
+    // Generate textual description of the experience
+    const experienceText = this.generateExperienceText(experience);
+    if (experienceText) {
+      this.experiences.push(experienceText);
+      // Keep experiences array manageable
+      if (this.experiences.length > 20) {
+        this.experiences.shift();
+      }
+    }
+  }
+  
+  // Generate textual description of an experience
+  private generateExperienceText(experience: Experience): string | null {
+    const { state, action, reward } = experience;
+    
+    // Only generate text for significant experiences (high rewards or penalties)
+    if (Math.abs(reward) < 0.5) return null;
+    
+    let description = '';
+    
+    if (reward > 0) {
+      // Positive experiences
+      switch (action) {
+        case 'moveForward':
+          description = "moved forward successfully";
+          break;
+        case 'approachOther':
+          description = "enjoyed approaching another character";
+          break;
+        case 'avoidObstacle':
+          description = "skillfully avoided an obstacle";
+          break;
+        case 'reachedTarget':
+          description = "reached a destination";
+          break;
+        case 'jump':
+          description = "performed a perfect jump";
+          break;
+        case 'reproduce':
+          description = "successfully reproduced";
+          break;
+        case 'dance':
+          description = "danced happily";
+          break;
+        case 'follow':
+          description = "followed another character";
+          break;
+        default:
+          description = `performed ${action} successfully`;
+      }
+    } else {
+      // Negative experiences
+      switch (action) {
+        case 'collision':
+          description = "bumped into an obstacle";
+          break;
+        case 'moveBackward':
+          description = "moved backward awkwardly";
+          break;
+        case 'reproduce':
+          description = "failed to reproduce";
+          break;
+        case 'jump':
+          description = "stumbled during a jump";
+          break;
+        default:
+          description = `struggled with ${action}`;
+      }
+    }
+    
+    return description;
+  }
+  
+  // Get recent experiences
+  getRecentExperiences(count: number = 3): string[] {
+    return this.experiences.slice(-count);
+  }
+  
   // Train the model with a reward
-  train(newState: string, reward: number): void {
+  train(newState: string, reward: number): string {
     if (this.lastState && this.lastAction) {
       this.updateQValue(this.lastState, this.lastAction, newState, reward);
       
@@ -119,6 +233,25 @@ export class ReinforcementLearning {
     this.recordStateAction(newState, nextAction);
     
     return nextAction;
+  }
+  
+  // Use experience replay to improve learning
+  replayExperiences(batchSize: number = 10): void {
+    if (this.experienceBuffer.length < batchSize) return;
+    
+    // Sample random experiences from buffer
+    for (let i = 0; i < batchSize; i++) {
+      const randomIndex = Math.floor(Math.random() * this.experienceBuffer.length);
+      const experience = this.experienceBuffer[randomIndex];
+      
+      // Re-learn from this experience
+      this.updateQValue(
+        experience.state,
+        experience.action,
+        experience.nextState,
+        experience.reward
+      );
+    }
   }
   
   // Get the best learned action for a state
@@ -140,11 +273,34 @@ export class ReinforcementLearning {
     return bestAction;
   }
   
-  // Get learning progress
+  // Get learning progress (normalized between 0 and 1)
   getLearningProgress(): number {
     // Count how many state-action pairs have been learned
     const keys = Object.keys(this.qTable);
-    return keys.length;
+    // Calculate a progress score between 0 and 1
+    // Aim for at least 50 state-action pairs for "complete" learning
+    return Math.min(1, keys.length / 50);
+  }
+  
+  // Should the character reproduce?
+  shouldReproduce(): boolean {
+    // Characters should reproduce when they've learned enough
+    // and reproduce is chosen as the best action
+    if (this.getLearningProgress() > 0.5) {
+      const lastState = this.lastState || 'default';
+      const bestAction = this.getBestAction(lastState);
+      return bestAction === 'reproduce' && Math.random() < 0.1; // 10% chance if conditions met
+    }
+    return false;
+  }
+  
+  // Should the character jump?
+  shouldJump(): boolean {
+    if (this.lastState) {
+      const bestAction = this.getBestAction(this.lastState);
+      return bestAction === 'jump';
+    }
+    return false;
   }
   
   // Reset learning
@@ -153,5 +309,32 @@ export class ReinforcementLearning {
     this.lastState = null;
     this.lastAction = null;
     this.explorationRate = 0.2;
+    this.experienceBuffer = [];
+    this.experiences = [];
+  }
+  
+  // Save learning state to JSON
+  saveToJSON(): string {
+    return JSON.stringify({
+      qTable: this.qTable,
+      learningRate: this.learningRate,
+      discountFactor: this.discountFactor,
+      explorationRate: this.explorationRate,
+      experiences: this.experiences
+    });
+  }
+  
+  // Load learning state from JSON
+  loadFromJSON(json: string): void {
+    try {
+      const data = JSON.parse(json);
+      this.qTable = data.qTable || {};
+      this.learningRate = data.learningRate || 0.1;
+      this.discountFactor = data.discountFactor || 0.9;
+      this.explorationRate = data.explorationRate || 0.2;
+      this.experiences = data.experiences || [];
+    } catch (error) {
+      console.error("Error loading learning state:", error);
+    }
   }
 }
