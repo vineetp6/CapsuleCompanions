@@ -103,6 +103,71 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
     }
   }, [personalityType]);
 
+  // Use refs to break circular dependencies
+  const generateActionTextRef = useRef<() => void>(() => {});
+  const initiateJumpRef = useRef<() => void>(() => {});
+  const handleReproduceRef = useRef<() => void>(() => {});
+  
+  // Generate text that describes the character's actions
+  generateActionTextRef.current = () => {
+    // If we have recent experiences from reinforcement learning, use those sometimes
+    const recentExperiences = reinforcementLearning.getRecentExperiences();
+    
+    if (recentExperiences.length > 0 && Math.random() < 0.6) {
+      // Use a recent experience as text
+      const randomExp = recentExperiences[Math.floor(Math.random() * recentExperiences.length)];
+      setActionText(`${name} ${randomExp}`);
+    } else {
+      // Otherwise use personality-based text
+      const actions = personality.getRandomAction();
+      setActionText(`${name} ${actions}`);
+    }
+  };
+
+  // Handle jumping function
+  initiateJumpRef.current = () => {
+    if (!isJumping) {
+      setIsJumping(true);
+      setActionText(`${name} is jumping!`);
+      
+      // After jump duration, reset
+      setTimeout(() => {
+        setIsJumping(false);
+        // Reward for jumping
+        reinforcementLearning.train('jump', 1);
+      }, movementParams.jumpDuration);
+    }
+  };
+  
+  // Handle reproduction
+  handleReproduceRef.current = () => {
+    if (groupRef.current && onReproduce) {
+      // Play success sound
+      playSuccess();
+      
+      // Log the reproduction
+      console.log(`${name} is reproducing!`);
+      setActionText(`${name} is creating a new character!`);
+      
+      // Call the onReproduce callback with the current position and traits
+      onReproduce(
+        groupRef.current.position,
+        color,
+        personalityType,
+        name
+      );
+      
+      // Record the positive experience
+      reinforcementLearning.train('reproduce', 2);
+      
+      // Save the learning progress
+      if (id) {
+        db.updateLearningProgress(id, reinforcementLearning.getLearningProgress())
+          .catch(err => console.error('Error updating learning progress:', err));
+      }
+    }
+  };
+
   // Generate a new target position based on personality
   const generateNewTarget = useCallback(() => {
     if (!groupRef.current) return;
@@ -210,14 +275,17 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
     targetPosition.z = Math.max(-10, Math.min(10, targetPosition.z));
     
     // Generate appropriate action text
-    generateActionText();
-  }, [groupRef, personalityType, position, targetPosition, movementParams.wanderRadius, otherCharacters]);
-
-  // Generate text that describes the character's actions
-  const generateActionText = useCallback(() => {
-    const actions = personality.getRandomAction();
-    setActionText(`${name} ${actions}`);
-  }, [name, personality]);
+    generateActionTextRef.current();
+    
+    // Check if we should perform any special actions (jump, reproduce, etc.)
+    if (reinforcementLearning.shouldJump() && Math.random() < 0.3) {
+      initiateJumpRef.current();
+    }
+    
+    if (reinforcementLearning.shouldReproduce() && onReproduce && groupRef.current) {
+      handleReproduceRef.current();
+    }
+  }, [groupRef, personalityType, position, targetPosition, movementParams.wanderRadius, otherCharacters, reinforcementLearning, onReproduce]);
 
   // Initialize position and first action
   useEffect(() => {
@@ -227,14 +295,35 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
     }
     
     // Set a timer to change target position every few seconds
-    const interval = setInterval(() => {
+    const movementInterval = setInterval(() => {
       if (isActive) {
         generateNewTarget();
+        
+        // Update learning progress
+        const progress = reinforcementLearning.getLearningProgress();
+        setLearningProgress(progress);
+        
+        // Periodically replay experiences to improve learning
+        if (Math.random() < 0.2) {
+          reinforcementLearning.replayExperiences(5);
+        }
       }
     }, 3000 + Math.random() * 2000); // Random interval between 3-5 seconds
     
-    return () => clearInterval(interval);
-  }, [position, generateNewTarget, isActive]);
+    // Set timer to save learning progress to database periodically
+    const saveInterval = setInterval(() => {
+      if (isActive && id) {
+        const progress = reinforcementLearning.getLearningProgress();
+        db.updateLearningProgress(id, progress)
+          .catch(err => console.error('Error updating learning progress:', err));
+      }
+    }, 10000); // Every 10 seconds
+    
+    return () => {
+      clearInterval(movementInterval);
+      clearInterval(saveInterval);
+    };
+  }, [position, generateNewTarget, isActive, id, reinforcementLearning]);
 
   // Click handler to activate/deactivate the character
   const handleClick = (e: any) => {
@@ -243,7 +332,7 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
     
     if (!isActive) {
       playHit();
-      generateActionText();
+      generateActionTextRef.current();
     }
   };
 
@@ -321,8 +410,20 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
         generateNewTarget();
       }
       
-      // Float animation - subtle up and down motion
-      capsuleRef.current.position.y = Math.sin(Date.now() * 0.002) * 0.05;
+      // Handle jumping animation or float animation
+      if (isJumping) {
+        // Calculate jump height based on a sine wave (0 to 1 to 0)
+        const jumpProgress = ((Date.now() % movementParams.jumpDuration) / movementParams.jumpDuration);
+        const jumpSine = Math.sin(jumpProgress * Math.PI);
+        const height = jumpSine * movementParams.jumpHeight;
+        setJumpHeight(height);
+        
+        // Apply the jump height to the capsule
+        capsuleRef.current.position.y = height;
+      } else {
+        // Regular floating animation when not jumping
+        capsuleRef.current.position.y = Math.sin(Date.now() * 0.002) * 0.05;
+      }
     }
   });
 
@@ -384,9 +485,17 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
           position={[0, 1.5, 0]}
           center
           className="pointer-events-none"
+          transform
+          occlude
         >
-          <div className="bg-black bg-opacity-70 text-white px-3 py-1 rounded-lg whitespace-nowrap">
-            {isActive ? actionText : name}
+          <div className="bg-black bg-opacity-80 text-white px-3 py-2 rounded-lg text-center max-w-[200px]">
+            {isActive ? 
+              actionText : 
+              <div>
+                <div>{name}</div>
+                <div className="text-xs mt-1">Learning: {Math.round(learningProgress * 100)}%</div>
+              </div>
+            }
           </div>
         </Html>
       )}
