@@ -5,6 +5,7 @@ import { useAudio } from "../../lib/stores/useAudio";
 import { Html } from "@react-three/drei";
 import { Personality, PersonalityType } from "../../lib/ai/personality";
 import { ReinforcementLearning } from "../../lib/ai/reinforcementLearning";
+import { Vector3, Object3D } from "three";
 
 export interface CapsuleCharacterProps {
   position: [number, number, number];
@@ -119,22 +120,25 @@ export const CapsuleCharacter: React.FC<CapsuleCharacterProps> = ({
         
       case "social":
         // Social characters try to move toward other characters
-        let nearestCharacter = null;
+        let nearestCharacter: THREE.Object3D | null = null;
         let nearestDistance = Infinity;
         
         otherCharacters.forEach(character => {
           if (character !== groupRef.current) {
-            const distance = currentPos.distanceTo(character.position);
-            if (distance < nearestDistance && distance > 0.5) { // Prevent getting too close
-              nearestDistance = distance;
-              nearestCharacter = character;
+            if (character && character.position) {
+              const distance = currentPos.distanceTo(character.position);
+              if (distance < nearestDistance && distance > 0.5) { // Prevent getting too close
+                nearestDistance = distance;
+                nearestCharacter = character;
+              }
             }
           }
         });
         
-        if (nearestCharacter && nearestDistance > 2) {
+        if (nearestCharacter && nearestDistance > 2 && nearestCharacter.position) {
           // Move toward nearest character
-          const toCharacter = nearestCharacter.position.clone().sub(currentPos).normalize();
+          const charPosition = nearestCharacter.position.clone();
+          const toCharacter = charPosition.sub(currentPos).normalize();
           targetPosition.set(
             currentPos.x + toCharacter.x * movementParams.wanderRadius * 0.7,
             position[1],

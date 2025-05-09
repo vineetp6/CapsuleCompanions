@@ -28,32 +28,50 @@ function App() {
   const [backgroundMusic, setBackgroundMusic] = useState<HTMLAudioElement | null>(null);
   const [hitSound, setHitSound] = useState<HTMLAudioElement | null>(null);
   const [successSound, setSuccessSound] = useState<HTMLAudioElement | null>(null);
-  const { setBackgroundMusic: setStoreBackgroundMusic, setHitSound: setStoreHitSound, setSuccessSound: setStoreSuccessSound } = useAudio();
+  const { 
+    setBackgroundMusic: setStoreBackgroundMusic, 
+    setHitSound: setStoreHitSound, 
+    setSuccessSound: setStoreSuccessSound,
+    startBackgroundMusic 
+  } = useAudio();
   
   // Load audio files on component mount
   useEffect(() => {
+    // Create audio elements
     const bgMusic = new Audio("/sounds/background.mp3");
     bgMusic.loop = true;
     bgMusic.volume = 0.3;
-    setBackgroundMusic(bgMusic);
-    setStoreBackgroundMusic(bgMusic);
     
     const hit = new Audio("/sounds/hit.mp3");
     hit.volume = 0.5;
-    setHitSound(hit);
-    setStoreHitSound(hit);
     
     const success = new Audio("/sounds/success.mp3");
     success.volume = 0.5;
+    
+    // Set local state
+    setBackgroundMusic(bgMusic);
+    setHitSound(hit);
     setSuccessSound(success);
+    
+    // Set store state
+    setStoreBackgroundMusic(bgMusic);
+    setStoreHitSound(hit);
     setStoreSuccessSound(success);
     
+    // Start playing background music
+    // Use a timeout to ensure the audio is ready
+    const audioTimeout = setTimeout(() => {
+      startBackgroundMusic();
+    }, 1000);
+    
     return () => {
+      // Clean up
+      clearTimeout(audioTimeout);
       bgMusic.pause();
       hit.pause();
       success.pause();
     };
-  }, [setStoreBackgroundMusic, setStoreHitSound, setStoreSuccessSound]);
+  }, [setStoreBackgroundMusic, setStoreHitSound, setStoreSuccessSound, startBackgroundMusic]);
 
   return (
     <div className="w-full h-full bg-gray-900">
